@@ -138,6 +138,11 @@ do_list() {
 	local i targets=( $(find_targets) )
 
 	write_list_start "Available wine versions:"
+	for (( i = 0; i < ${#targets[@]}; i++ )); do
+		[[ ${targets[i]} = \
+			$(basename "$(canonicalise "${EROOT}${BINDIR}/wine")") ]] \
+			&& targets[i]=$(highlight_marker "${targets[i]}")
+	done
 	write_numbered_list -m "(none found)" "${targets[@]}"
 }
 
