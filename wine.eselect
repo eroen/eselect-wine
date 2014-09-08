@@ -5,7 +5,7 @@
 DESCRIPTION="Manage active wine version"
 MAINTAINER=""
 
-PREFIXDIR=/usr/share
+PREFIXDIR=/usr/lib
 BINDIR=/usr/bin
 EXECUTABLES=(msiexec notepad regedit regsvr32 widl wine wine64 wine64-preloader
 wineboot winebuild winecfg wineconsole winecpp winedbg winefile wineg++ winegcc
