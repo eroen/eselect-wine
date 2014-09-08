@@ -10,6 +10,12 @@ BINDIR=/usr/bin
 EXECUTABLES=(msiexec notepad regedit regsvr32 widl wine wine64 wine64-preloader
 wineboot winebuild winecfg wineconsole winecpp winedbg winefile wineg++ winegcc
 winemine winepath wine-preloader wineserver wmc wrc)
+MANDIR=/usr/share/man
+MANPAGES=( man1/widl.1 man1/winebuild.1 man1/winegcc.1 man1/wineg++.1
+man1/winecpp.1 man1/wineserver.1 man1/wine.1 man1/wmc.1 man1/wrc.1
+man1/msiexec.1 man1/notepad.1 man1/regedit.1 man1/regsvr32.1 man1/wineboot.1
+man1/winecfg.1 man1/wineconsole.1 man1/winedbg.1 man1/winefile.1
+man1/winemine.1 man1/winepath.1)
 
 # TODO:
 # sort function for kernel versions, to be used in a pipe
@@ -43,10 +49,17 @@ find_targets() {
 # remove wine symlinks
 remove_symlinks() {
 	for exe in "${EXECUTABLES[@]}"; do
-		if [[ -L "${EROOT}${BINDIR}/${exe}" ]]; then
+		if [[ -L ${EROOT}${BINDIR}/${exe} ]]; then
 			rm "${EROOT}${BINDIR}/${exe}" || return 1
 		fi
 	done
+
+	for page in "${MANPAGES[@]}"; do
+		if [[ -L ${EROOT}/${MANDIR}/${page} ]]; then
+			rm "${EROOT}/${MANDIR}/${page}" || return 1
+		fi
+	done
+
 	return 0
 }
 
@@ -67,6 +80,12 @@ set_symlinks() {
 			local tgtexe="${exe}"-"${target#wine-}"
 			if [[ -f ${EROOT}${BINDIR}/${tgtexe} ]] || [[ -L ${EROOT}${BINDIR}/${tgtexe} ]]; then
 				ln -s "${tgtexe}" "${EROOT}${BINDIR}/${exe}" || return 1
+			fi
+		done
+
+		for page in "${MANPAGES[@]}"; do
+			if [[ -f ${EROOT}${PREFIXDIR}/${target}/man/${page} ]]; then
+				ln -s "${EROOT}${PREFIXDIR}/${target}/man/${page}" "${EROOT}/${MANDIR}/${page}" || return 1
 			fi
 		done
 
