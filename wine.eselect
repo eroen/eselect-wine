@@ -11,11 +11,13 @@ EXECUTABLES=(msiexec notepad regedit regsvr32 widl wine wine64 wine64-preloader
 wineboot winebuild winecfg wineconsole winecpp winedbg winefile wineg++ winegcc
 winemine winepath wine-preloader wineserver wmc wrc)
 MANDIR=/usr/share/man
-MANPAGES=( man1/widl.1 man1/winebuild.1 man1/winegcc.1 man1/wineg++.1
+MANPAGES=(man1/widl.1 man1/winebuild.1 man1/winegcc.1 man1/wineg++.1
 man1/winecpp.1 man1/wineserver.1 man1/wine.1 man1/wmc.1 man1/wrc.1
 man1/msiexec.1 man1/notepad.1 man1/regedit.1 man1/regsvr32.1 man1/wineboot.1
 man1/winecfg.1 man1/wineconsole.1 man1/winedbg.1 man1/winefile.1
 man1/winemine.1 man1/winepath.1)
+DESKTOPFILES=(wine.desktop)
+DESKTOPDIR=/usr/share/applications
 
 # TODO:
 # sort function for kernel versions, to be used in a pipe
@@ -59,6 +61,11 @@ remove_symlinks() {
 			rm "${EROOT}/${MANDIR}/${page}" || return 1
 		fi
 	done
+	for d in "${DESKTOPFILES[@]}"; do
+		if [[ -L ${EROOT}/${DESKTOPDIR}/${d} ]]; then
+			rm "${EROOT}/${DESKTOPDIR}/${d}" || return 1
+		fi
+	done
 
 	return 0
 }
@@ -86,6 +93,12 @@ set_symlinks() {
 		for page in "${MANPAGES[@]}"; do
 			if [[ -f ${EROOT}${PREFIXDIR}/${target}/man/${page} ]]; then
 				ln -s "${EROOT}${PREFIXDIR}/${target}/man/${page}" "${EROOT}/${MANDIR}/${page}" || return 1
+			fi
+		done
+
+		for d in "${DESKTOPFILES[@]}"; do
+			if [[ -f ${EROOT}${PREFIXDIR}/${target}/applications/${d} ]]; then
+				ln -s "${EROOT}${PREFIXDIR}/${target}/applications/${d}" "${EROOT}/${DESKTOPDIR}/${d}" || return 1
 			fi
 		done
 
