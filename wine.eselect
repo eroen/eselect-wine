@@ -109,6 +109,16 @@ do_list() {
 	write_numbered_list -m "(none found)" "${targets[@]}"
 }
 
+### remove action ###
+
+describe_remove() {
+	echo "Remove wine symlinks"
+}
+
+do_remove() {
+	remove_symlinks || die -q "Couldn't remove existing symlinks"
+}
+
 ### set action ###
 
 describe_set() {
