@@ -11,6 +11,7 @@ EXECUTABLES=(msiexec notepad regedit regsvr32 widl wine wine64 wine64-preloader
 wineboot winebuild winecfg wineconsole winecpp winedbg winefile wineg++ winegcc
 winemine winepath wine-preloader wineserver wmc wrc)
 
+# TODO:
 # sort function for kernel versions, to be used in a pipe
 sort_kernel_versions() {
 	local vsort="sort --version-sort"
@@ -34,7 +35,7 @@ sort_kernel_versions() {
 # find a list of installed wine versions
 find_targets() {
 	local f
-	for f in "${EROOT}"/usr/share/wine-*; do
+	for f in "${EROOT}${PREFIXDIR}"/wine-*; do
 		[[ -f ${f}/bin/wine ]] && basename "${f}"
 	done | sort_kernel_versions
 }
@@ -42,8 +43,8 @@ find_targets() {
 # remove wine symlinks
 remove_symlinks() {
 	for exe in "${EXECUTABLES[@]}"; do
-		if [[ -L "${EROOT}"/usr/bin/"${exe}" ]]; then
-			rm "${EROOT}"/usr/bin/"${exe}" || return 1
+		if [[ -L "${EROOT}${BINDIR}/${exe}" ]]; then
+			rm "${EROOT}${BINDIR}/${exe}" || return 1
 		fi
 	done
 	return 0
@@ -60,12 +61,12 @@ set_symlinks() {
 
 	if [[ -z ${target} ]]; then
 		die -q "Target \"$1\" doesn't appear to be valid!"
-	elif [[ -f ${EROOT}/usr/share/${target}/bin/wine ]]; then
+	elif [[ -f ${EROOT}${PREFIXDIR}/${target}/bin/wine ]]; then
 
 		for exe in "${EXECUTABLES[@]}"; do
 			local tgtexe="${exe}"-"${target#wine-}"
-			if [ -f ${EROOT}/usr/bin/${tgtexe} ] || [ -l ${EROOT}/usr/bin/${tgtexe} ]; then
-				ln -s "${tgtexe}" "${EROOT}"/usr/bin/"${exe}" || return 1
+			if [[ -f ${EROOT}${BINDIR}/${tgtexe} ]] || [[ -L ${EROOT}${BINDIR}/${tgtexe} ]]; then
+				ln -s "${tgtexe}" "${EROOT}${BINDIR}/${exe}" || return 1
 			fi
 		done
 
@@ -84,9 +85,9 @@ describe_show() {
 
 do_show() {
 	write_list_start "Active wine version:"
-	if [[ -L ${EROOT}/usr/bin/wine ]]; then
-		local wine=$(canonicalise "${EROOT}/usr/bin/wine")
-		winedir=${EROOT}/usr/share/${wine##*/}
+	if [[ -L ${EROOT}${BINDIR}/wine ]]; then
+		local wine=$(canonicalise "${EROOT}${BINDIR}/wine")
+		winedir=${EROOT}${PREFIXDIR}/${wine##*/}
 		write_kv_list_entry "${winedir%/}" ""
 		[[ -f ${winedir}/bin/wine ]] \
 			|| write_warning_msg "Symlink target doesn't appear to be valid!"
@@ -122,7 +123,6 @@ describe_set_options() {
 	echo "target : Target name or number (from 'list' action)"
 }
 
-# TODO
 do_set() {
 	[[ -z $1 ]] && die -q "You didn't tell me what version to symlink"
 	[[ $# -gt 1 ]] && die -q "Too many parameters"
