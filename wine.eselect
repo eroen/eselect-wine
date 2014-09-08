@@ -2,8 +2,14 @@
 # Copyright 2005-2014 Gentoo Foundation
 # Distributed under the terms of the GNU GPL version 2 or later
 
-DESCRIPTION="Manage the /usr/src/linux symlink"
-MAINTAINER="eselect@gentoo.org"
+DESCRIPTION="Manage active wine version"
+MAINTAINER=""
+
+PREFIXDIR=/usr/share
+BINDIR=/usr/bin
+EXECUTABLES=(msiexec notepad regedit regsvr32 widl wine wine64 wine64-preloader
+wineboot winebuild winecfg wineconsole winecpp winedbg winefile wineg++ winegcc
+winemine winepath wine-preloader wineserver wmc wrc)
 
 # sort function for kernel versions, to be used in a pipe
 sort_kernel_versions() {
@@ -25,21 +31,26 @@ sort_kernel_versions() {
 		| LC_ALL=C ${vsort} | sed 's/.* //'
 }
 
-# find a list of kernel symlink targets
+# find a list of installed wine versions
 find_targets() {
 	local f
-	for f in "${EROOT}"/usr/src/linux-*; do
-		[[ -f ${f}/Makefile && -f ${f}/Kconfig ]] && basename "${f}"
+	for f in "${EROOT}"/usr/share/wine-*; do
+		[[ -f ${f}/bin/wine ]] && basename "${f}"
 	done | sort_kernel_versions
 }
 
-# remove the kernel symlink
-remove_symlink() {
-	rm "${EROOT}/usr/src/linux"
+# remove wine symlinks
+remove_symlinks() {
+	for exe in "${EXECUTABLES[@]}"; do
+		if [[ -L "${EROOT}"/usr/bin/"${exe}" ]]; then
+			rm "${EROOT}"/usr/bin/"${exe}" || return 1
+		fi
+	done
+	return 0
 }
 
-# set the kernel symlink
-set_symlink() {
+# set wine symlinks
+set_symlinks() {
 	local target=$1
 
 	if is_number "${target}"; then
@@ -49,27 +60,35 @@ set_symlink() {
 
 	if [[ -z ${target} ]]; then
 		die -q "Target \"$1\" doesn't appear to be valid!"
-	elif [[ -f ${EROOT}/usr/src/${target}/Makefile ]]; then
-		ln -s "${target}" "${EROOT}/usr/src/linux"
-	elif [[ -f ${EROOT}/usr/src/linux-${target}/Makefile ]]; then
-		ln -s "linux-${target}" "${EROOT}/usr/src/linux"
+	elif [[ -f ${EROOT}/usr/share/${target}/bin/wine ]]; then
+
+		for exe in "${EXECUTABLES[@]}"; do
+			local tgtexe="${exe}"-"${target#wine-}"
+			if [ -f ${EROOT}/usr/bin/${tgtexe} ] || [ -l ${EROOT}/usr/bin/${tgtexe} ]; then
+				ln -s "${tgtexe}" "${EROOT}"/usr/bin/"${exe}" || return 1
+			fi
+		done
+
 	else
 		die -q "Target \"$1\" doesn't appear to be valid!"
 	fi
+
+	return 0
 }
 
 ### show action ###
 
 describe_show() {
-	echo "Show the current kernel symlink"
+	echo "Show the active wine version"
 }
 
 do_show() {
-	write_list_start "Current kernel symlink:"
-	if [[ -L ${EROOT}/usr/src/linux ]]; then
-		local kernel=$(canonicalise "${EROOT}/usr/src/linux")
-		write_kv_list_entry "${kernel%/}" ""
-		[[ -f ${kernel}/Makefile ]] \
+	write_list_start "Active wine version:"
+	if [[ -L ${EROOT}/usr/bin/wine ]]; then
+		local wine=$(canonicalise "${EROOT}/usr/bin/wine")
+		winedir=${EROOT}/usr/share/${wine##*/}
+		write_kv_list_entry "${winedir%/}" ""
+		[[ -f ${winedir}/bin/wine ]] \
 			|| write_warning_msg "Symlink target doesn't appear to be valid!"
 	else
 		write_kv_list_entry "(unset)" ""
@@ -79,25 +98,20 @@ do_show() {
 ### list action ###
 
 describe_list() {
-	echo "List available kernel symlink targets"
+	echo "List available wine versions"
 }
 
 do_list() {
 	local i targets=( $(find_targets) )
 
-	write_list_start "Available kernel symlink targets:"
-	for (( i = 0; i < ${#targets[@]}; i++ )); do
-		[[ ${targets[i]} = \
-			$(basename "$(canonicalise "${EROOT}/usr/src/linux")") ]] \
-			&& targets[i]=$(highlight_marker "${targets[i]}")
-	done
+	write_list_start "Available wine versions:"
 	write_numbered_list -m "(none found)" "${targets[@]}"
 }
 
 ### set action ###
 
 describe_set() {
-	echo "Set a new kernel symlink target"
+	echo "Set a new wine version"
 }
 
 describe_set_parameters() {
@@ -108,18 +122,20 @@ describe_set_options() {
 	echo "target : Target name or number (from 'list' action)"
 }
 
+# TODO
 do_set() {
-	[[ -z $1 ]] && die -q "You didn't tell me what to set the symlink to"
+	[[ -z $1 ]] && die -q "You didn't tell me what version to symlink"
 	[[ $# -gt 1 ]] && die -q "Too many parameters"
 
-	if [[ -L ${EROOT}/usr/src/linux ]]; then
-		# existing symlink
-		remove_symlink || die -q "Couldn't remove existing symlink"
-		set_symlink "$1" || die -q "Couldn't set a new symlink"
-	elif [[ -e ${EROOT}/usr/src/linux ]]; then
-		# we have something strange
-		die -q "${EROOT}/usr/src/linux exists but is not a symlink"
-	else
-		set_symlink "$1" || die -q "Couldn't set a new symlink"
-	fi
+	for exe in "${EXECUTABLES[@]}"; do
+		if [[ -L ${EROOT}/usr/bin/${exe} ]]; then
+			continue
+		elif [[ -e ${EROOT}/usr/bin/${exe} ]]; then
+			# we have something strange
+			die -q "${EROOT}/usr/bin/${exe} exists but is not a symlink"
+		fi
+	done
+
+	remove_symlinks || die -q "Couldn't remove existing symlinks"
+	set_symlinks "$1" || die -q "Couldn't set a new symlinks"
 }
