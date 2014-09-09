@@ -19,24 +19,19 @@ man1/winemine.1 man1/winepath.1)
 DESKTOPFILES=(wine.desktop)
 DESKTOPDIR=/usr/share/applications
 
-# TODO:
-# sort function for kernel versions, to be used in a pipe
-sort_kernel_versions() {
+# sort function for versions, to be used in a pipe
+sort_versions() {
 	local vsort="sort --version-sort"
-	# Test if our sort supports the --version-sort option
-	# (should be GNU sort, since the kernel module is GNU/Linux specific)
+	# Test if our sort supports the --version-sort option (posix does)
 	${vsort} </dev/null &>/dev/null || vsort=sort
 
-	# We sort kernel versions as follows:
+	# We sort versions as follows:
 	# 1. Run sed to prepend the version string by the numeric version
-	#    and an additional rank indicator that is 0 for release candidates
-	#    or 1 otherwise. After this step we have, for example:
-	#      2.6.29 1 linux-2.6.29
-	#      2.6.29 0 linux-2.6.29-rc8
+	#      1.7.21 wine-1.7.21
+	#      1.7.14 wine-compholio-1.7.14
 	# 2. sort --version-sort
 	# 3. Run sed again to remove the prepended keys from step 1.
-	sed -e 's/^\(wine-\)\?\([[:digit:].]\+\)[-_]rc/\2 0 &/' \
-		-e 't;s/^\(wine-\)\?\([[:digit:].]\+\)/\2 1 &/' \
+	sed -e 's/^\(.\+-\)\([[:digit:].]*\)$/\2 &/' \
 		| LC_ALL=C ${vsort} | sed 's/.* //'
 }
 
@@ -45,7 +40,7 @@ find_targets() {
 	local f
 	for f in "${EROOT}${PREFIXDIR}"/wine-*; do
 		[[ -f ${f}/bin/wine ]] && basename "${f}"
-	done | sort_kernel_versions
+	done | sort_versions
 }
 
 # remove wine symlinks
