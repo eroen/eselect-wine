@@ -119,7 +119,7 @@ do_show() {
 	write_list_start "Active wine version:"
 	if [[ -L ${EROOT}${BINDIR}/wine ]]; then
 		local wine=$(canonicalise "${EROOT}${BINDIR}/wine")
-		winedir=${EROOT}${PREFIXDIR}/${wine##*/}
+		local winedir=${EROOT}${PREFIXDIR}/${wine##*/}
 		write_kv_list_entry "${winedir%/}" ""
 		[[ -f ${winedir}/bin/wine ]] \
 			|| write_warning_msg "Symlink target doesn't appear to be valid!"
@@ -185,4 +185,33 @@ do_set() {
 
 	remove_symlinks || die -q "Couldn't remove existing symlinks"
 	set_symlinks "$1" || die -q "Couldn't set a new symlinks"
+}
+
+### update action ###
+
+describe_update() {
+	echo "Set highest version installed active"
+}
+
+describe_update_parameters() {
+	echo "[--if-unset]"
+}
+
+describe_update_options() {
+	echo "--if-unset : Do nothing if active version appears valid"
+}
+
+do_update() {
+	if [[ ${1} = "--if-unset" ]]; then
+		if [[ -L ${EROOT}${BINDIR}/wine ]]; then
+			local wine=$(canonicalise "${EROOT}${BINDIR}/wine")
+			local winedir=${EROOT}${PREFIXDIR}/${wine##*/}
+			if [[ -x ${winedir}/bin/wine ]]; then
+				return 0
+			fi
+		fi
+		echo "No valid active wine version found, updating"
+	fi
+
+	do_set 0 || die -q "Couldn't set a new symlinks"
 }
