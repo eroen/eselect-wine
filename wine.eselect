@@ -69,6 +69,9 @@ remove_symlinks() {
 			rm "${EROOT}/${DESKTOPDIR}/${d}" || return 1
 		fi
 	done
+	if [[ -L ${EROOT}/usr/include/wine ]]; then
+		rm "${EROOT}/usr/include/wine" || return 1
+	fi
 
 	desktop_database_update
 
@@ -107,6 +110,10 @@ set_symlinks() {
 				ln -s "${EROOT}${PREFIXDIR}/${target}/applications/${d}" "${EROOT}/${DESKTOPDIR}/${d}" || return 1
 			fi
 		done
+
+		if [[ -d ${EROOT}${PREFIXDIR}/${target}/include/wine ]]; then
+			ln -s "${EROOT}${PREFIXDIR}/${target}/include/wine" "${EROOT}/usr/include/wine" || return 1
+		fi
 
 	else
 		die -q "Target \"$1\" doesn't appear to be valid!"
