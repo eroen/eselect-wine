@@ -2,6 +2,8 @@
 # Copyright 2005-2014 Gentoo Foundation
 # Distributed under the terms of the GNU GPL version 2 or later
 
+inherit multilib tests
+
 DESCRIPTION="Manage active wine version"
 MAINTAINER=""
 
@@ -72,6 +74,16 @@ remove_symlinks() {
 	if [[ -L ${EROOT}/usr/include/wine ]]; then
 		rm "${EROOT}/usr/include/wine" || return 1
 	fi
+	for d in $(list_libdirs); do
+		local ld=/usr/$d
+		[[ -L $ld ]] && continue
+		for f in "$ld"/libwine.so*; do
+			rm -f "$f" || return 1
+		done
+		if [[ -L ${ld}/wine ]]; then
+			rm -f "${ld}/wine" || return 1
+		fi
+	done
 
 	desktop_database_update
 
@@ -114,6 +126,18 @@ set_symlinks() {
 		if [[ -d ${EROOT}${PREFIXDIR}/${target}/include/wine ]]; then
 			ln -s "${EROOT}${PREFIXDIR}/${target}/include/wine" "${EROOT}/usr/include/wine" || return 1
 		fi
+
+		for d in $(list_libdirs); do
+			local ld=/usr/$d
+			[[ -L $ld ]] && continue
+			local wined=${EROOT}${PREFIXDIR}/${target}/${d}
+			for f in "${wined}"/libwine.so*; do
+				ln -s "$f" "$ld"/ || return 1
+			done
+			if [[ -d ${wined}/wine ]]; then
+				ln -s "${wined}/wine" "$ld"/wine || return 1
+			fi
+		done
 
 	else
 		die -q "Target \"$1\" doesn't appear to be valid!"
