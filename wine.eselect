@@ -7,6 +7,8 @@ inherit multilib tests
 DESCRIPTION="Manage active wine version"
 MAINTAINER=""
 
+VARIANTS=(staging)
+
 PREFIXDIR=/usr/lib
 BINDIR=/usr/bin
 EXECUTABLES=(msiexec notepad regedit regsvr32 widl wine wine64 wine64-preloader
@@ -37,11 +39,20 @@ sort_versions() {
 		| LC_ALL=C ${vsort} | sed 's/.* //'
 }
 
-# find a list of installed wine versions
+# find a list of available wine versions
 find_targets() {
 	local f
 	for f in "${EROOT}${PREFIXDIR}"/wine-*; do
-		[[ -f ${f}/bin/wine ]] && basename "${f}"
+		[[ -f ${f}/bin/wine ]] && echo "${f##*/}"
+	done | sort_versions
+}
+
+find_variant_targets() {
+	local variant=$1
+	[[ -n $variant ]] || die "\$variant is empty :("
+	local f
+	for f in "${EROOT}${PREFIXDIR}/wine-${variant}-"*; do
+		[[ -f ${f}/bin/wine ]] && echo "${f##*/}"
 	done | sort_versions
 }
 
@@ -90,8 +101,23 @@ remove_symlinks() {
 	return 0
 }
 
+# remove variant wine symlinks
+# usage: remove_variant_symlinks <variant>
+remove_variant_symlinks() {
+	local variant=$1
+	[[ -n $variant ]] || die "\$variant is empty :("
+
+	for exe in "${EXECUTABLES[@]}"; do
+		if [[ -L ${EROOT}${BINDIR}/${exe}-${variant} ]]; then
+			rm "${EROOT}${BINDIR}/${exe}-${variant}" || return 1
+		fi
+	done
+
+	return 0
+}
+
 # set wine symlinks
-# Usage: set_symlinks <name> | <number>
+# Usage: set_symlinks <name|number>
 set_symlinks() {
 	local target=$1
 
@@ -101,7 +127,7 @@ set_symlinks() {
 	fi
 
 	if [[ -z ${target} ]]; then
-		die -q "Target \"$1\" doesn't appear to be valid!"
+		die "Target \"$target\" doesn't appear to be valid!"
 	elif [[ -f ${EROOT}${PREFIXDIR}/${target}/bin/wine ]]; then
 
 		for exe in "${EXECUTABLES[@]}"; do
@@ -140,10 +166,41 @@ set_symlinks() {
 		done
 
 	else
-		die -q "Target \"$1\" doesn't appear to be valid!"
+		die "Target \"$target\" doesn't appear to be valid!"
 	fi
 
 	desktop_database_update
+
+	return 0
+}
+
+# set variant wine symlinks
+# usage: set_variant_symlinks <variant> <name|number>
+set_variant_symlinks() {
+	local variant=$1
+	[[ -n $variant ]] || die "\$variant is empty :("
+
+	local target=$2
+
+	if is_number "${target}"; then
+		local targets=( $(find_variant_targets "$variant") )
+		target=${targets[target-1]}
+	fi
+
+	if [[ -z ${target} ]]; then
+		die "Target \"$target\" doesn't appear to be valid!"
+	elif [[ -f ${EROOT}${PREFIXDIR}/${target}/bin/wine ]]; then
+
+		for exe in "${EXECUTABLES[@]}"; do
+			local tgtexe="${exe}"-"${target#wine-}"
+			if [[ -f ${EROOT}${BINDIR}/${tgtexe} || -L ${EROOT}${BINDIR}/${tgtexe} ]]; then
+				ln -s "${tgtexe}" "${EROOT}${BINDIR}/${exe}-${variant}" || return 1
+			fi
+		done
+
+	else
+		die "Target \"$target\" doesn't appear to be valid!"
+	fi
 
 	return 0
 }
@@ -158,15 +215,45 @@ get_current() {
 	fi
 }
 
+# print currently selected variant wine
+get_current_variant() {
+	local variant=$1
+	[[ -n $variant ]] || die "\$variant is empty :("
+
+	if [[ -L ${EROOT}${BINDIR}/wine-${variant} ]]; then
+		local winefull=$(canonicalise "${EROOT}${BINDIR}/wine-${variant}")
+		local wine="${winefull##*/}"
+		[[ -n $wine ]] || return 1
+		echo "${wine}"
+	fi
+}
+
 ### show action ###
 
 describe_show() {
 	echo "Show the active wine version"
 }
 
+describe_show_options() {
+	for v in ${VARIANTS[@]}; do
+		echo "--$v : Show the active 'wine-$v'"
+	done
+}
+
 do_show() {
-	write_list_start "Active wine version:"
-	local wine=$(get_current)
+	local variant=""
+	if has "${1#--}" "${VARIANTS[@]}" ; then
+		variant=${1#--}
+	fi
+
+	local wine
+	if [[ -n $variant ]]; then
+		write_list_start "Active wine-${variant} version:"
+		wine=$(get_current_variant "$variant")
+	else
+		write_list_start "Active wine version:"
+		wine=$(get_current)
+	fi
 	if [[ -n ${wine} ]]; then
 		write_kv_list_entry "${wine}" ""
 		local winedir=${EROOT}${PREFIXDIR}/${wine##*/}
@@ -183,10 +270,28 @@ describe_list() {
 	echo "List available wine versions"
 }
 
-do_list() {
-	local i targets=( $(find_targets) )
+describe_list_options() {
+	for v in ${VARIANTS[@]}; do
+		echo "--$v : List the available 'wine-$v'"
+	done
+}
 
-	write_list_start "Available wine versions:"
+do_list() {
+	local i
+	local variant=""
+	local targets
+	if has "${1#--}" "${VARIANTS[@]}" ; then
+		variant=${1#--}
+	fi
+
+	if [[ -n $variant ]]; then
+		targets=( $(find_variant_targets "$variant") )
+		write_list_start "Available wine-$variant versions:"
+	else
+		targets=( $(find_targets) )
+		write_list_start "Available wine versions:"
+	fi
+
 	for (( i = 0; i < ${#targets[@]}; i++ )); do
 		[[ ${targets[i]} = \
 			$(basename "$(canonicalise "${EROOT}${BINDIR}/wine")") ]] \
@@ -201,8 +306,22 @@ describe_remove() {
 	echo "Remove wine symlinks"
 }
 
+describe_remove_options() {
+	for v in ${VARIANTS[@]}; do
+		echo "--$v : Remove the 'wine-$v' symlinks"
+	done
+}
+
 do_remove() {
-	remove_symlinks || die -q "Couldn't remove existing symlinks"
+	local variant=""
+	if has "${1#--}" "${VARIANTS[@]}" ; then
+		variant=${1#--}
+	fi
+	if [[ -n $variant ]]; then
+		remove_variant_symlinks "$variant" || die -q "Couldn't remove wine-${variant} symlinks"
+	else
+		remove_symlinks || die -q "Couldn't remove wine symlinks"
+	fi
 }
 
 ### set action ###
@@ -216,24 +335,39 @@ describe_set_parameters() {
 }
 
 describe_set_options() {
+	for v in ${VARIANTS[@]}; do
+		echo "--$v : Set only the 'wine-$v' symlinks"
+	done
 	echo "target : Target name or number (from 'list' action)"
 }
 
 do_set() {
+	local variant=""
+	if has "${1#--}" "${VARIANTS[@]}" ; then
+		variant=${1#--}
+		shift
+	fi
 	[[ -z $1 ]] && die -q "You didn't tell me what version to symlink"
-	[[ $# -gt 1 ]] && die -q "Too many parameters"
+	[[ $# -gt 1 ]] && die "Too many parameters"
 
+	local suffix=""
+	[[ -n $variant ]] && suffix=-$variant
 	for exe in "${EXECUTABLES[@]}"; do
-		if [[ -L ${EROOT}/usr/bin/${exe} ]]; then
+		if [[ -L ${EROOT}${BINDIR}/${exe}${suffix} ]]; then
 			continue
-		elif [[ -e ${EROOT}/usr/bin/${exe} ]]; then
+		elif [[ -e ${EROOT}${BINDIR}/${exe}${suffix} ]]; then
 			# we have something strange
-			die -q "${EROOT}/usr/bin/${exe} exists but is not a symlink"
+			die "${EROOT}${BINDIR}/${exe}${suffix} exists but is not a symlink"
 		fi
 	done
 
-	remove_symlinks || die -q "Couldn't remove existing symlinks"
-	set_symlinks "$1" || die -q "Couldn't set a new symlinks"
+	if [[ -n $variant ]]; then
+		remove_variant_symlinks "$variant"
+		set_variant_symlinks "$variant" "$1"
+	else
+		remove_symlinks || die -q "Couldn't remove existing symlinks"
+		set_symlinks "$1" || die -q "Couldn't set a new symlinks"
+	fi
 }
 
 ### update action ###
@@ -242,18 +376,47 @@ describe_update() {
 	echo "Set highest version installed active"
 }
 
-describe_update_parameters() {
-	echo "[--if-unset]"
-}
-
 describe_update_options() {
+	for v in ${VARIANTS[@]}; do
+		echo "--$v : Update the 'wine-$v' symlinks"
+	done
+	echo "--all : Update main active wine and all variants"
 	echo "--if-unset : Reuse currently selected version if it appears valid"
 }
 
 do_update() {
+	local variant=""
+	if has --all "$@"; then
+		if has --if-unset "$@"; then
+			do_update --if-unset
+		else
+			do_update
+		fi
+		for variant in "$VARIANTS"; do
+			if has --if-unset "$@"; then
+				do_update "--${variant}" --if-unset
+			else
+				do_update "--${variant}"
+			fi
+		done
+		return 0
+	fi
+
 	local v=0
-	if [[ ${1} = "--if-unset" ]]; then
-		local wine=$(get_current)
+	local arg
+	for arg in "$@"; do
+		if has "${arg#--}" "${VARIANTS[@]}" ; then
+			variant=${arg#--}
+			break
+		fi
+	done
+	if has --if-unset "$@"; then
+		local wine
+		if [[ -n $variant ]]; then
+			wine=$(get_current_variant "$variant")
+		else
+			wine=$(get_current)
+		fi
 		if [[ -n ${wine} ]]; then
 			v="${wine}"
 		else
@@ -261,5 +424,9 @@ do_update() {
 		fi
 	fi
 
-	do_set "$v" || die -q "Couldn't set a new symlinks"
+	if [[ -n $variant ]]; then
+		do_set "--$variant" "$v" || die -q "Couldn't set a new wine-$variant symlinks"
+	else
+		do_set "$v" || die -q "Couldn't set a new wine symlinks"
+	fi
 }
