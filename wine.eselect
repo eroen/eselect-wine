@@ -117,6 +117,16 @@ set_symlinks() {
 	return 0
 }
 
+# print currently selected wine
+get_current() {
+	if [[ -L ${EROOT}${BINDIR}/wine ]]; then
+		local winefull=$(canonicalise "${EROOT}${BINDIR}/wine")
+		local wine="${winefull##*/}"
+		[[ -n $wine ]] || return 1
+		echo "${wine}"
+	fi
+}
+
 ### show action ###
 
 describe_show() {
@@ -125,10 +135,10 @@ describe_show() {
 
 do_show() {
 	write_list_start "Active wine version:"
-	if [[ -L ${EROOT}${BINDIR}/wine ]]; then
-		local wine=$(canonicalise "${EROOT}${BINDIR}/wine")
+	local wine=$(get_current)
+	if [[ -n ${wine} ]]; then
+		write_kv_list_entry "${wine}" ""
 		local winedir=${EROOT}${PREFIXDIR}/${wine##*/}
-		write_kv_list_entry "${winedir%/}" ""
 		[[ -f ${winedir}/bin/wine ]] \
 			|| write_warning_msg "Symlink target doesn't appear to be valid!"
 	else
@@ -206,20 +216,19 @@ describe_update_parameters() {
 }
 
 describe_update_options() {
-	echo "--if-unset : Do nothing if active version appears valid"
+	echo "--if-unset : Reuse currently selected version if it appears valid"
 }
 
 do_update() {
+	local v=0
 	if [[ ${1} = "--if-unset" ]]; then
-		if [[ -L ${EROOT}${BINDIR}/wine ]]; then
-			local wine=$(canonicalise "${EROOT}${BINDIR}/wine")
-			local winedir=${EROOT}${PREFIXDIR}/${wine##*/}
-			if [[ -x ${winedir}/bin/wine ]]; then
-				return 0
-			fi
+		local wine=$(get_current)
+		if [[ -n ${wine} ]]; then
+			v="${wine}"
+		else
+			echo "Current wine is not valid, will update to newest"
 		fi
-		echo "No valid active wine version found, updating"
 	fi
 
-	do_set 0 || die -q "Couldn't set a new symlinks"
+	do_set "$v" || die -q "Couldn't set a new symlinks"
 }
