@@ -300,19 +300,19 @@ do_list() {
 	write_numbered_list -m "(none found)" "${targets[@]}"
 }
 
-### remove action ###
+### unset action ###
 
-describe_remove() {
+describe_unset() {
 	echo "Remove wine symlinks"
 }
 
-describe_remove_options() {
+describe_unset_options() {
 	for v in ${VARIANTS[@]}; do
 		echo "--$v : Remove the 'wine-$v' symlinks"
 	done
 }
 
-do_remove() {
+do_unset() {
 	local variant=""
 	if has "${1#--}" "${VARIANTS[@]}" ; then
 		variant=${1#--}
