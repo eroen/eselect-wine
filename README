@@ -1,2 +1,15 @@
-## Testing
+# eselect-wine
+
+eselect-wine finds installed wine versions by looking for folders named `wine-*` in `$PREFIX` that contain a file `bin/wine`.
+Additionally, it relies on the existance of launcher scripts for the various wine executables in `$BINDIR` with the same suffix as the corresponding folder in `$PREFIX`.
+
+Suffixes matching `$VARIANTS` will cause issues.
+
+Wine should be installed with the following arguments passed to `configure`:
+
+    --prefix="${PREFIX}/wine-${suffix}" \
+    --datadir="${PREFIX}/wine-${suffix}" \
+    --mandir="${PREFIX}/wine-${suffix}/man"
+
+## "Dry" testing
 For the most basic usage, the directory ${PREFIX}/wine-XXX and the files ${PREFIX}/wine-XXX and ${BINDIR}/wine-XXX must exist.
