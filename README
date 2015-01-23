@@ -1,0 +1,2 @@
+## Testing
+For the most basic usage, the directory ${PREFIX}/wine-XXX and the files ${PREFIX}/wine-XXX and ${BINDIR}/wine-XXX must exist.
