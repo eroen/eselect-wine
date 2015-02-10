@@ -437,9 +437,9 @@ do_update() {
 		else
 			if [[ -n $variant ]]; then
 				echo "Current wine-${variant} is not valid, will update to newest"
-			fi
-				echo "Current wine is not valid, will update to newest"
 			else
+				echo "Current wine is not valid, will update to newest"
+			fi
 		fi
 	fi
 
