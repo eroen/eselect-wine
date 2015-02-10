@@ -7,7 +7,7 @@ inherit multilib tests
 DESCRIPTION="Manage active wine version"
 MAINTAINER=""
 
-VARIANTS=(staging)
+VARIANTS=(staging vanilla)
 
 PREFIXDIR=/usr/lib
 BINDIR=/usr/bin
