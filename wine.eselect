@@ -317,7 +317,7 @@ do_unset() {
 	local variant=""
 	if has --all "$@"; then
 		do_unset
-		for variant in "$VARIANTS"; do
+		for variant in "${VARIANTS[@]}"; do
 			do_unset "--${variant}"
 		done
 		return 0
@@ -401,7 +401,7 @@ do_update() {
 		else
 			do_update
 		fi
-		for variant in "$VARIANTS"; do
+		for variant in "${VARIANTS[@]}"; do
 			if has --if-unset "$@"; then
 				do_update "--${variant}" --if-unset
 			else
