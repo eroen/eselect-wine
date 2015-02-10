@@ -293,9 +293,15 @@ do_list() {
 	fi
 
 	for (( i = 0; i < ${#targets[@]}; i++ )); do
-		[[ ${targets[i]} = \
-			$(basename "$(canonicalise "${EROOT}${BINDIR}/wine")") ]] \
-			&& targets[i]=$(highlight_marker "${targets[i]}")
+		if [[ -n $variant ]]; then
+			if [[ ${targets[i]} = $(get_current_variant "$variant") ]]; then
+				targets[i]=$(highlight_marker "${targets[i]}")
+			fi
+		else
+			if [[ ${targets[i]} = $(get_current) ]]; then
+				targets[i]=$(highlight_marker "${targets[i]}")
+			fi
+		fi
 	done
 	write_numbered_list -m "(none found)" "${targets[@]}"
 }
@@ -429,7 +435,11 @@ do_update() {
 		if [[ -n ${wine} ]]; then
 			v="${wine}"
 		else
-			echo "Current wine is not valid, will update to newest"
+			if [[ -n $variant ]]; then
+				echo "Current wine-${variant} is not valid, will update to newest"
+			fi
+				echo "Current wine is not valid, will update to newest"
+			else
 		fi
 	fi
 
