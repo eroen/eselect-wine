@@ -42,7 +42,7 @@ sort_versions() {
 # find a list of available wine versions
 find_targets() {
 	local f
-	for f in "${EROOT}${PREFIXDIR}"/wine-*; do
+	for f in "${EROOT%/}${PREFIXDIR%/}"/wine-*; do
 		[[ -f ${f}/bin/wine ]] && echo "${f##*/}"
 	done | sort_versions
 }
@@ -51,39 +51,39 @@ find_variant_targets() {
 	local variant=$1
 	[[ -n $variant ]] || die "\$variant is empty :("
 	local f
-	for f in "${EROOT}${PREFIXDIR}/wine-${variant}-"*; do
+	for f in "${EROOT%/}${PREFIXDIR%/}/wine-${variant}-"*; do
 		[[ -f ${f}/bin/wine ]] && echo "${f##*/}"
 	done | sort_versions
 }
 
 # lifted from fdo-mime.eclass
 desktop_database_update() {
-	if [[ -x "${EPREFIX}/usr/bin/update-desktop-database" ]]; then
+	if [[ -x "${EPREFIX%/}/usr/bin/update-desktop-database" ]]; then
 		echo "Updating desktop mime database ..."
-		"${EPREFIX}/usr/bin/update-desktop-database" -q "${EROOT}usr/share/applications"
+		"${EPREFIX%/}/usr/bin/update-desktop-database" -q "${EROOT%/}/usr/share/applications"
 	fi
 }
 
 # remove wine symlinks
 remove_symlinks() {
 	for exe in "${EXECUTABLES[@]}"; do
-		if [[ -L ${EROOT}${BINDIR}/${exe} ]]; then
-			rm "${EROOT}${BINDIR}/${exe}" || return 1
+		if [[ -L ${EROOT%/}${BINDIR%/}/${exe} ]]; then
+			rm "${EROOT%/}${BINDIR%/}/${exe}" || return 1
 		fi
 	done
 
 	for page in "${MANPAGES[@]}"; do
-		if [[ -L ${EROOT}/${MANDIR}/${page} ]]; then
-			rm "${EROOT}/${MANDIR}/${page}" || return 1
+		if [[ -L ${EROOT%/}/${MANDIR%/}/${page} ]]; then
+			rm "${EROOT%/}/${MANDIR%/}/${page}" || return 1
 		fi
 	done
 	for d in "${DESKTOPFILES[@]}"; do
-		if [[ -L ${EROOT}/${DESKTOPDIR}/${d} ]]; then
-			rm "${EROOT}/${DESKTOPDIR}/${d}" || return 1
+		if [[ -L ${EROOT%/}/${DESKTOPDIR%/}/${d} ]]; then
+			rm "${EROOT%/}/${DESKTOPDIR%/}/${d}" || return 1
 		fi
 	done
-	if [[ -L ${EROOT}/usr/include/wine ]]; then
-		rm "${EROOT}/usr/include/wine" || return 1
+	if [[ -L ${EROOT%/}/usr/include/wine ]]; then
+		rm "${EROOT%/}/usr/include/wine" || return 1
 	fi
 	for d in $(list_libdirs); do
 		local ld=/usr/$d
@@ -108,8 +108,8 @@ remove_variant_symlinks() {
 	[[ -n $variant ]] || die "\$variant is empty :("
 
 	for exe in "${EXECUTABLES[@]}"; do
-		if [[ -L ${EROOT}${BINDIR}/${exe}-${variant} ]]; then
-			rm "${EROOT}${BINDIR}/${exe}-${variant}" || return 1
+		if [[ -L ${EROOT%/}${BINDIR%/}/${exe}-${variant} ]]; then
+			rm "${EROOT%/}${BINDIR%/}/${exe}-${variant}" || return 1
 		fi
 	done
 
@@ -128,35 +128,35 @@ set_symlinks() {
 
 	if [[ -z ${target} ]]; then
 		die "Target \"$target\" doesn't appear to be valid!"
-	elif [[ -f ${EROOT}${PREFIXDIR}/${target}/bin/wine ]]; then
+	elif [[ -f ${EROOT%/}${PREFIXDIR%/}/${target}/bin/wine ]]; then
 
 		for exe in "${EXECUTABLES[@]}"; do
 			local tgtexe="${exe}"-"${target#wine-}"
-			if [[ -f ${EROOT}${BINDIR}/${tgtexe} ]] || [[ -L ${EROOT}${BINDIR}/${tgtexe} ]]; then
-				ln -s "${tgtexe}" "${EROOT}${BINDIR}/${exe}" || return 1
+			if [[ -f ${EROOT%/}${BINDIR%/}/${tgtexe} ]] || [[ -L ${EROOT%/}${BINDIR%/}/${tgtexe} ]]; then
+				ln -s "${tgtexe}" "${EROOT%/}${BINDIR%/}/${exe}" || return 1
 			fi
 		done
 
 		for page in "${MANPAGES[@]}"; do
-			if [[ -f ${EROOT}${PREFIXDIR}/${target}/man/${page} ]]; then
-				ln -s "${EROOT}${PREFIXDIR}/${target}/man/${page}" "${EROOT}/${MANDIR}/${page}" || return 1
+			if [[ -f ${EROOT%/}${PREFIXDIR%/}/${target}/man/${page} ]]; then
+				ln -s "${EROOT%/}${PREFIXDIR%/}/${target}/man/${page}" "${EROOT%/}/${MANDIR%/}/${page}" || return 1
 			fi
 		done
 
 		for d in "${DESKTOPFILES[@]}"; do
-			if [[ -f ${EROOT}${PREFIXDIR}/${target}/applications/${d} ]]; then
-				ln -s "${EROOT}${PREFIXDIR}/${target}/applications/${d}" "${EROOT}/${DESKTOPDIR}/${d}" || return 1
+			if [[ -f ${EROOT%/}${PREFIXDIR%/}/${target}/applications/${d} ]]; then
+				ln -s "${EROOT%/}${PREFIXDIR%/}/${target}/applications/${d}" "${EROOT%/}/${DESKTOPDIR%/}/${d}" || return 1
 			fi
 		done
 
-		if [[ -d ${EROOT}${PREFIXDIR}/${target}/include/wine ]]; then
-			ln -s "${EROOT}${PREFIXDIR}/${target}/include/wine" "${EROOT}/usr/include/wine" || return 1
+		if [[ -d ${EROOT%/}${PREFIXDIR%/}/${target}/include/wine ]]; then
+			ln -s "${EROOT%/}${PREFIXDIR%/}/${target}/include/wine" "${EROOT%/}/usr/include/wine" || return 1
 		fi
 
 		for d in $(list_libdirs); do
 			local ld=/usr/$d
 			[[ -L $ld ]] && continue
-			local wined=${EROOT}${PREFIXDIR}/${target}/${d}
+			local wined=${EROOT%/}${PREFIXDIR%/}/${target}/${d}
 			for f in "${wined}"/libwine.so*; do
 				ln -s "$f" "$ld"/ || return 1
 			done
@@ -189,12 +189,12 @@ set_variant_symlinks() {
 
 	if [[ -z ${target} ]]; then
 		die "Target \"$target\" doesn't appear to be valid!"
-	elif [[ -f ${EROOT}${PREFIXDIR}/${target}/bin/wine ]]; then
+	elif [[ -f ${EROOT%/}${PREFIXDIR%/}/${target}/bin/wine ]]; then
 
 		for exe in "${EXECUTABLES[@]}"; do
 			local tgtexe="${exe}"-"${target#wine-}"
-			if [[ -f ${EROOT}${BINDIR}/${tgtexe} || -L ${EROOT}${BINDIR}/${tgtexe} ]]; then
-				ln -s "${tgtexe}" "${EROOT}${BINDIR}/${exe}-${variant}" || return 1
+			if [[ -f ${EROOT%/}${BINDIR%/}/${tgtexe} || -L ${EROOT%/}${BINDIR%/}/${tgtexe} ]]; then
+				ln -s "${tgtexe}" "${EROOT%/}${BINDIR%/}/${exe}-${variant}" || return 1
 			fi
 		done
 
@@ -207,8 +207,8 @@ set_variant_symlinks() {
 
 # print currently selected wine
 get_current() {
-	if [[ -L ${EROOT}${BINDIR}/wine ]]; then
-		local winefull=$(canonicalise "${EROOT}${BINDIR}/wine")
+	if [[ -L ${EROOT%/}${BINDIR%/}/wine ]]; then
+		local winefull=$(canonicalise "${EROOT%/}${BINDIR%/}/wine")
 		local wine="${winefull##*/}"
 		[[ -n $wine ]] || return 1
 		echo "${wine}"
@@ -220,8 +220,8 @@ get_current_variant() {
 	local variant=$1
 	[[ -n $variant ]] || die "\$variant is empty :("
 
-	if [[ -L ${EROOT}${BINDIR}/wine-${variant} ]]; then
-		local winefull=$(canonicalise "${EROOT}${BINDIR}/wine-${variant}")
+	if [[ -L ${EROOT%/}${BINDIR%/}/wine-${variant} ]]; then
+		local winefull=$(canonicalise "${EROOT%/}${BINDIR%/}/wine-${variant}")
 		local wine="${winefull##*/}"
 		[[ -n $wine ]] || return 1
 		echo "${wine}"
@@ -256,7 +256,7 @@ do_show() {
 	fi
 	if [[ -n ${wine} ]]; then
 		write_kv_list_entry "${wine}" ""
-		local winedir=${EROOT}${PREFIXDIR}/${wine##*/}
+		local winedir=${EROOT%/}${PREFIXDIR%/}/${wine##*/}
 		[[ -f ${winedir}/bin/wine ]] \
 			|| write_warning_msg "Symlink target doesn't appear to be valid!"
 	else
@@ -368,11 +368,11 @@ do_set() {
 	local suffix=""
 	[[ -n $variant ]] && suffix=-$variant
 	for exe in "${EXECUTABLES[@]}"; do
-		if [[ -L ${EROOT}${BINDIR}/${exe}${suffix} ]]; then
+		if [[ -L ${EROOT%/}${BINDIR%/}/${exe}${suffix} ]]; then
 			continue
-		elif [[ -e ${EROOT}${BINDIR}/${exe}${suffix} ]]; then
+		elif [[ -e ${EROOT%/}${BINDIR%/}/${exe}${suffix} ]]; then
 			# we have something strange
-			die "${EROOT}${BINDIR}/${exe}${suffix} exists but is not a symlink"
+			die "${EROOT%/}${BINDIR%/}/${exe}${suffix} exists but is not a symlink"
 		fi
 	done
 
